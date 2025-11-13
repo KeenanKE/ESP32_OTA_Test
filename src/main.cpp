@@ -73,9 +73,15 @@ WiFiEventId_t wifiEventId = WiFi.onEvent([](WiFiEvent_t event) {
     // Create a small task so we don't block the WiFi/event loop
     xTaskCreate(
       [](void*){
+        // Initial delay to allow services to settle
         vTaskDelay(pdMS_TO_TICKS(30000)); // 30 seconds
-        checkForUpdates();
-        vTaskDelete(NULL);
+
+        // After the initial delay, keep checking for updates every 15 seconds.
+        // Run forever; the task will remain active for the lifetime of the device.
+        for (;;) {
+          checkForUpdates();
+          vTaskDelay(pdMS_TO_TICKS(30000)); // 30 seconds
+        }
       },
       "ota_delay_task",
       8192,
