@@ -2,6 +2,11 @@
 #include <HTTPClient.h>
 #include <Update.h>
 
+// Allow build-time override via platformio.ini build_flags (see platformio.ini)
+#ifndef SERIAL_BAUD
+#define SERIAL_BAUD 9600
+#endif
+
 const char* ssid = "Wirelessnet";
 const char* password = "BerryWi2023%";
 // Version number (v1.0)
@@ -89,7 +94,7 @@ void blinkLED(int delayTime) {
 }
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(SERIAL_BAUD);
   pinMode(LED, OUTPUT);
 
   // Connect to WiFi
@@ -102,5 +107,5 @@ void setup() {
 }
 
 void loop() {
-  blinkLED(100);  // Blink every 1 second
+  blinkLED(1000);  // Blink every 1 second
 }
