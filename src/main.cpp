@@ -122,13 +122,19 @@ void blinkLED(int delayTime) {
 void setup() {
   // read persisted baud (falls back to 9600 if not set)
   int runtimeBaud = loadPreferredBaud(9600);
+  // Ensure the baud is persisted so future OTA updates keep the same speed.
+  // If there is no stored value (getInt returns 0), write the runtime value once.
+  prefs.begin("cfg", true);
+  int stored = prefs.getInt("baud", 0);
+  prefs.end();
+  if (stored <= 0) {
+    savePreferredBaud(runtimeBaud);
+  }
 
-  // Optionally ensure NVS is populated for first run:
-  // If no key existed, save the default so future boots are explicit
-  // (only necessary if you want to guarantee the key exists)
-  // savePreferredBaud(runtimeBaud);
-
+  // Start serial at the selected baud and print which baud we're using.
   Serial.begin(runtimeBaud);
+  delay(20);
+  Serial.printf("Using serial baud: %d\n", runtimeBaud);
   pinMode(LED, OUTPUT);
 
   // Connect to WiFi
@@ -141,5 +147,5 @@ void setup() {
 }
 
 void loop() {
-  blinkLED(100);  // Blink every 1 second
+  blinkLED(1000);  // Blink every 1 second
 }
