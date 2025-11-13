@@ -7,7 +7,7 @@ const char* password = "BerryWi2023%";
 #define VERSION "2.0"  // Change this in the second build to "2.0"
 #define LED 2
 
-const char* firmwareUrl = "https://raw.github.com/KeenanKE/ESP32_OTA_Test/blob/main/releases/firmware.bin";
+const char* firmwareUrl = "https://raw.githubusercontent.com/KeenanKE/ESP32_OTA_Test/main/releases/firmware.bin";
 
 void blinkLED(int delayTime) {
   digitalWrite(LED, HIGH);
