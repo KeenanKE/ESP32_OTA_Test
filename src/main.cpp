@@ -4,14 +4,9 @@
 
 const char* ssid = "Wirelessnet";
 const char* password = "BerryWi2023%";
-
-// Version number (v1.0)
-#define VERSION "1.0"
-
-// LED pin (onboard LED is usually GPIO 2)
+#define VERSION "2.0"  // Change this in the second build to "2.0"
 #define LED 2
 
-// URL to check for updates later
 const char* firmwareUrl = "https://github.com/KeenanKE/ESP32_OTA_Test/tree/main/releases/firmware.bin";
 
 void blinkLED(int delayTime) {
@@ -21,19 +16,38 @@ void blinkLED(int delayTime) {
   delay(delayTime);
 }
 
-void setup() {
-  Serial.begin(9600);
-  pinMode(LED, OUTPUT);
-
-  // Connect to WiFi
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.print(".");
+void checkForUpdates() {
+  Serial.println("Checking for updates...");
+  HTTPClient http;
+  http.begin(firmwareUrl);
+  int httpCode = http.GET();
+  if (httpCode == HTTP_CODE_OK) {
+    int contentLength = http.getSize();
+    WiFiClient* stream = http.getStreamPtr();
+    if (Update.begin(contentLength)) {
+      size_t written = Update.writeStream(*stream);
+      if (Update.end(true)) {
+        Serial.println("Update successful! Rebooting...");
+        ESP.restart();
+      }
+    } else {
+      Serial.println("Not enough space for update.");
+    }
+  } else {
+    Serial.println("No update available or connection error.");
   }
-  Serial.println("\nConnected to WiFi!");
+  http.end();
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(LED, OUTPUT);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) delay(500);
+  Serial.println("Connected to WiFi!");
+  checkForUpdates();  // Check GitHub once on startup
 }
 
 void loop() {
-  blinkLED(1000);  // Blink every 1 second
+  blinkLED(1000);  // Blink slowly if v1.0, faster after update
 }
