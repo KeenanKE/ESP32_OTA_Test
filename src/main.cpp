@@ -1,6 +1,7 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <Update.h>
+#include <Preferences.h>
 
 // Allow build-time override via platformio.ini build_flags (see platformio.ini)
 #ifndef SERIAL_BAUD
@@ -17,6 +18,22 @@ const char* password = "BerryWi2023%";
 
 // URL to check for updates later
 const char* firmwareUrl = "https://raw.githubusercontent.com/KeenanKE/ESP32_OTA_Test/main/releases/firmware.bin";
+
+Preferences prefs;
+
+int loadPreferredBaud(int defaultBaud = 9600) {
+  prefs.begin("cfg", true);          // namespace "cfg", read-only
+  int b = prefs.getInt("baud", 0);   // 0 means not set
+  prefs.end();
+  if (b <= 0) return defaultBaud;
+  return b;
+}
+
+void savePreferredBaud(int baud) {
+  prefs.begin("cfg", false);         // writeable
+  prefs.putInt("baud", baud);
+  prefs.end();
+}
 
 void checkForUpdates() {
   Serial.println("Checking for firmware update...");
@@ -100,7 +117,15 @@ void blinkLED(int delayTime) {
 }
 
 void setup() {
-  Serial.begin(SERIAL_BAUD);
+  // read persisted baud (falls back to 9600 if not set)
+  int runtimeBaud = loadPreferredBaud(9600);
+
+  // Optionally ensure NVS is populated for first run:
+  // If no key existed, save the default so future boots are explicit
+  // (only necessary if you want to guarantee the key exists)
+  // savePreferredBaud(runtimeBaud);
+
+  Serial.begin(runtimeBaud);
   pinMode(LED, OUTPUT);
 
   // Connect to WiFi
@@ -113,5 +138,5 @@ void setup() {
 }
 
 void loop() {
-  blinkLED(200);  // Blink every 1 second
+  blinkLED(1000);  // Blink every 1 second
 }
