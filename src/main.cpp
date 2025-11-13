@@ -62,7 +62,8 @@ void checkForUpdates() {
     size_t written = Update.writeStream(*stream);
     Serial.printf("Written %u/%u bytes\n", (unsigned)written, (unsigned)contentLength);
 
-    if (Update.end()) {
+    // Finalize — pass true so the Update class will check and mark the image
+    if (Update.end(true)) {
       if (Update.isFinished()) {
         Serial.println("Update successful, restarting...");
         http.end();
@@ -70,9 +71,11 @@ void checkForUpdates() {
         ESP.restart();
       } else {
         Serial.println("Update not finished? Something went wrong.");
+        Update.printError(Serial);
       }
     } else {
       Serial.printf("Update failed. Error #: %d\n", Update.getError());
+      Update.printError(Serial);
     }
   } else {
     Serial.printf("HTTP GET failed, code: %d\n", httpCode);
