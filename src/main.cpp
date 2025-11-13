@@ -2,8 +2,8 @@
 #include <HTTPClient.h>
 #include <Update.h>
 
-const char* ssid = "YOUR_WIFI_NAME";
-const char* password = "YOUR_WIFI_PASSWORD";
+const char* ssid = "Wirelessnet";
+const char* password = "BerryWi2023%";
 #define VERSION "1.0"  // Change this in the second build to "2.0"
 #define LED 2
 
