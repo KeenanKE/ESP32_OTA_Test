@@ -113,5 +113,5 @@ void setup() {
 }
 
 void loop() {
-  blinkLED(100);  // Blink every 1 second
+  blinkLED(200);  // Blink every 1 second
 }
