@@ -66,20 +66,23 @@ def after_build(source, target, env):
     # PlatformIO stores preprocessor defines in CPPDEFINES.
     version = None
 
-    # Debug: Print all CPPDEFINES to see what we have
-    print("[copy_firmware] DEBUG: CPPDEFINES =", env.get("CPPDEFINES", []))
-
     # CPPDEFINES can be a list of strings or tuples
     for define in env.get("CPPDEFINES", []):
-        # Check if it's a tuple like ('FIRMWARE_VERSION', '"1.0.0"')
+        # Check if it's a tuple like ('FIRMWARE_VERSION', '\\"1.0.0\\"')
         if isinstance(define, tuple) and len(define) == 2:
             if define[0] == "FIRMWARE_VERSION":
-                # Remove surrounding quotes if present
-                version = define[1].strip('"').strip("'")
+                # Remove surrounding quotes and backslashes
+                # The value comes as '\\"1.0.0\\"' and we need just '1.0.0'
+                version = define[1].replace("\\", "").replace('"', "").replace("'", "")
                 break
         # Check if it's a string like 'FIRMWARE_VERSION="1.0.0"'
         elif isinstance(define, str) and define.startswith("FIRMWARE_VERSION="):
-            version = define.replace("FIRMWARE_VERSION=", "").strip('"').strip("'")
+            version = (
+                define.replace("FIRMWARE_VERSION=", "")
+                .replace("\\", "")
+                .replace('"', "")
+                .replace("'", "")
+            )
             break
 
     if version:
