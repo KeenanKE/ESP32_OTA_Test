@@ -61,6 +61,27 @@ def after_build(source, target, env):
         shutil.copy2(elf_path, dst)
         copied.append(dst)
 
+    # --- Generate version.txt file ---
+    # Extract the FIRMWARE_VERSION from the build flags.
+    # This searches through all build flags looking for one that starts with '-DFIRMWARE_VERSION='
+    version = None
+    for flag in env.get("BUILD_FLAGS", []):
+        if flag.startswith("-DFIRMWARE_VERSION="):
+            # Extract the version string, removing the flag prefix and any quotes
+            version = flag.replace("-DFIRMWARE_VERSION=", "").strip('"')
+            break
+
+    if version:
+        version_file_path = os.path.join(releases_dir, "version.txt")
+        with open(version_file_path, "w") as f:
+            f.write(version)
+        copied.append(version_file_path)
+        print(f"[copy_firmware] Generated version.txt with version: {version}")
+    else:
+        print(
+            "[copy_firmware] Warning: FIRMWARE_VERSION not found in build flags. version.txt not created."
+        )
+
     # Provide feedback in the terminal to confirm what was copied.
     if copied:
         print("\n[copy_firmware] Copied build artifacts:")
