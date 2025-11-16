@@ -40,6 +40,12 @@ void ota_task(void *parameter) {
         HTTPClient http;
         http.begin(firmwareUrl);
 
+        // --- Add Cache-Control Headers ---
+        // These headers tell the server/CDN to bypass the cache and provide the latest file.
+        http.addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        http.addHeader("Pragma", "no-cache");
+        http.addHeader("Expires", "0");
+
         int httpCode = http.GET();
         if (httpCode == HTTP_CODE_OK) {
             int contentLength = http.getSize();
