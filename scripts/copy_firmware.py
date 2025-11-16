@@ -62,13 +62,24 @@ def after_build(source, target, env):
         copied.append(dst)
 
     # --- Generate version.txt file ---
-    # Extract the FIRMWARE_VERSION from the build flags.
-    # This searches through all build flags looking for one that starts with '-DFIRMWARE_VERSION='
+    # Extract the FIRMWARE_VERSION from the build defines.
+    # PlatformIO stores preprocessor defines in CPPDEFINES.
     version = None
-    for flag in env.get("BUILD_FLAGS", []):
-        if flag.startswith("-DFIRMWARE_VERSION="):
-            # Extract the version string, removing the flag prefix and any quotes
-            version = flag.replace("-DFIRMWARE_VERSION=", "").strip('"')
+
+    # Debug: Print all CPPDEFINES to see what we have
+    print("[copy_firmware] DEBUG: CPPDEFINES =", env.get("CPPDEFINES", []))
+
+    # CPPDEFINES can be a list of strings or tuples
+    for define in env.get("CPPDEFINES", []):
+        # Check if it's a tuple like ('FIRMWARE_VERSION', '"1.0.0"')
+        if isinstance(define, tuple) and len(define) == 2:
+            if define[0] == "FIRMWARE_VERSION":
+                # Remove surrounding quotes if present
+                version = define[1].strip('"').strip("'")
+                break
+        # Check if it's a string like 'FIRMWARE_VERSION="1.0.0"'
+        elif isinstance(define, str) and define.startswith("FIRMWARE_VERSION="):
+            version = define.replace("FIRMWARE_VERSION=", "").strip('"').strip("'")
             break
 
     if version:
@@ -79,7 +90,7 @@ def after_build(source, target, env):
         print(f"[copy_firmware] Generated version.txt with version: {version}")
     else:
         print(
-            "[copy_firmware] Warning: FIRMWARE_VERSION not found in build flags. version.txt not created."
+            "[copy_firmware] Warning: FIRMWARE_VERSION not found in build defines. version.txt not created."
         )
 
     # Provide feedback in the terminal to confirm what was copied.
