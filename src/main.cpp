@@ -1,151 +1,131 @@
+#include <Arduino.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <Update.h>
-#include <Preferences.h>
 
-// Allow build-time override via platformio.ini build_flags (see platformio.ini)
-#ifndef SERIAL_BAUD
-#define SERIAL_BAUD 9600
-#endif
-
+// --- Configuration ---
+// Replace with your Wi-Fi credentials
 const char* ssid = "Wirelessnet";
 const char* password = "BerryWi2023%";
-// Version number (v1.0)
-#define VERSION "1.0"
 
-// LED pin (onboard LED is usually GPIO 2)
-#define LED 2
-
-// URL to check for updates later
+// URL for the firmware binary on your GitHub
 const char* firmwareUrl = "https://raw.githubusercontent.com/KeenanKE/ESP32_OTA_Test/main/releases/firmware.bin";
 
-Preferences prefs;
+// Pin for the built-in LED (usually GPIO 2 on dev kits)
+const int ledPin = 2;
 
-int loadPreferredBaud(int defaultBaud = 9600) {
-  prefs.begin("cfg", true);          // namespace "cfg", read-only
-  int b = prefs.getInt("baud", 0);   // 0 means not set
-  prefs.end();
-  if (b <= 0) return defaultBaud;
-  return b;
-}
+// Check for updates every 30 seconds
+const unsigned long updateInterval = 30000; 
+unsigned long previousMillis = 0;
+// --- End Configuration ---
 
-void savePreferredBaud(int baud) {
-  prefs.begin("cfg", false);         // writeable
-  prefs.putInt("baud", baud);
-  prefs.end();
-}
 
-void checkForUpdates() {
-  Serial.println("Checking for firmware update...");
+// --- Function Explanations ---
+/*
+* `performUpdate()`: This function handles the core OTA logic.
+* Why: It encapsulates the entire update process, from downloading the firmware to restarting the device.
+* How:
+*   1. An `HTTPClient` object is created to make a request to your `firmwareUrl`.
+*   2. It checks if the server responds with `HTTP_CODE_OK` (200), meaning the file was found.
+*   3. `Update.begin()` prepares the ESP32's flash memory to be written with the new firmware. It needs the total size of the incoming file to verify there's enough space.
+*   4. `Update.writeStream()` takes the binary data from the HTTP response and writes it directly to the flash partition. This is memory-efficient as it doesn't store the whole file in RAM first.
+*   5. `Update.end()` finalizes the update. If successful, it will make the new firmware the active one.
+*   6. `ESP.restart()` reboots the device to run the newly updated code.
+*/
+void performUpdate() {
+    Serial.println("[OTA] Checking for new firmware...");
 
-  HTTPClient http;
-  http.begin(firmwareUrl);
-  int httpCode = http.GET();
+    HTTPClient http;
+    http.begin(firmwareUrl);
 
-  if (httpCode == HTTP_CODE_OK) {
-    int contentLength = http.getSize();
-    if (contentLength <= 0) {
-      Serial.println("No content or content-length unknown.");
-      http.end();
-      return;
-    }
+    int httpCode = http.GET();
+    if (httpCode == HTTP_CODE_OK) {
+        int contentLength = http.getSize();
+        if (contentLength > 0) {
+            Serial.printf("[OTA] New firmware available. Size: %d bytes\n", contentLength);
 
-    WiFiClient *stream = http.getStreamPtr();
-    Serial.printf("Update size: %d bytes\n", contentLength);
+            bool canBegin = Update.begin(contentLength);
+            if (canBegin) {
+                Serial.println("[OTA] Starting update process...");
+                // Get the stream of the HTTP response body
+                WiFiClient& stream = http.getStream();
+                // Write the stream to the Update library
+                size_t written = Update.writeStream(stream);
 
-    if (!Update.begin(contentLength)) {
-      Serial.println("Not enough space to begin OTA");
-      http.end();
-      return;
-    }
+                if (written == contentLength) {
+                    Serial.println("[OTA] Wrote: " + String(written) + " successfully");
+                } else {
+                    Serial.println("[OTA] Wrote only: " + String(written) + "/" + String(contentLength) + ". Error!");
+                }
 
-    size_t written = Update.writeStream(*stream);
-    Serial.printf("Written %u/%u bytes\n", (unsigned)written, (unsigned)contentLength);
-
-    // Finalize — pass true so the Update class will check and mark the image
-    if (Update.end(true)) {
-      if (Update.isFinished()) {
-        Serial.println("Update successful, restarting...");
-        http.end();
-        delay(100);
-        ESP.restart();
-      } else {
-        Serial.println("Update not finished? Something went wrong.");
-        Update.printError(Serial);
-      }
-    } else {
-      Serial.printf("Update failed. Error #: %d\n", Update.getError());
-      Update.printError(Serial);
-    }
-  } else {
-    Serial.printf("HTTP GET failed, code: %d\n", httpCode);
-  }
-
-  http.end();
-}
-
-// When we get a WiFi IP, wait 30 seconds then perform the OTA check.
-// Use an event handler so we don't have to modify setup().
-WiFiEventId_t wifiEventId = WiFi.onEvent([](WiFiEvent_t event) {
-  if (event == SYSTEM_EVENT_STA_GOT_IP) {
-    Serial.println("WiFi connected. Waiting 30 seconds before OTA check...");
-
-    // Create a small task so we don't block the WiFi/event loop
-    xTaskCreate(
-      [](void*){
-        // Initial delay to allow services to settle
-        vTaskDelay(pdMS_TO_TICKS(30000)); // 30 seconds
-
-        // After the initial delay, keep checking for updates every 15 seconds.
-        // Run forever; the task will remain active for the lifetime of the device.
-        for (;;) {
-          checkForUpdates();
-          vTaskDelay(pdMS_TO_TICKS(30000)); // 30 seconds
+                if (Update.end()) {
+                    Serial.println("[OTA] Update finished!");
+                    if (Update.isFinished()) {
+                        Serial.println("[OTA] Update successful! Rebooting...");
+                        ESP.restart();
+                    } else {
+                        Serial.println("[OTA] Update not finished. Something went wrong.");
+                    }
+                } else {
+                    Serial.println("[OTA] Error occurred: " + String(Update.getError()));
+                }
+            } else {
+                Serial.println("[OTA] Not enough space to begin OTA");
+            }
+        } else {
+            Serial.println("[OTA] Content length is zero, skipping update.");
         }
-      },
-      "ota_delay_task",
-      8192,
-      nullptr,
-      1,
-      nullptr
-    );
-  }
-});
-
-void blinkLED(int delayTime) {
-  digitalWrite(LED, HIGH);
-  delay(delayTime);
-  digitalWrite(LED, LOW);
-  delay(delayTime);
+    } else {
+        Serial.printf("[OTA] HTTP request failed. Error: %s\n", http.errorToString(httpCode).c_str());
+    }
+    http.end();
 }
 
 void setup() {
-  // read persisted baud (falls back to 9600 if not set)
-  int runtimeBaud = loadPreferredBaud(9600);
-  // Ensure the baud is persisted so future OTA updates keep the same speed.
-  // If there is no stored value (getInt returns 0), write the runtime value once.
-  prefs.begin("cfg", true);
-  int stored = prefs.getInt("baud", 0);
-  prefs.end();
-  if (stored <= 0) {
-    savePreferredBaud(runtimeBaud);
-  }
+    Serial.begin(115200);
+    Serial.println("\n[Boot] Starting up...");
 
-  // Start serial at the selected baud and print which baud we're using.
-  Serial.begin(runtimeBaud);
-  delay(20);
-  Serial.printf("Using serial baud: %d\n", runtimeBaud);
-  pinMode(LED, OUTPUT);
+    pinMode(ledPin, OUTPUT);
+    digitalWrite(ledPin, LOW);
 
-  // Connect to WiFi
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("\nConnected to WiFi!");
+    // Connect to Wi-Fi
+    Serial.print("[WiFi] Connecting to ");
+    Serial.println(ssid);
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+        digitalWrite(ledPin, !digitalRead(ledPin)); // Blink LED while connecting
+    }
+    Serial.println("\n[WiFi] Connected!");
+    Serial.print("[WiFi] IP Address: ");
+    Serial.println(WiFi.localIP());
+
+    digitalWrite(ledPin, LOW); // Turn LED off once connected
+
+    // Set the initial time for the first update check
+    previousMillis = millis();
 }
 
 void loop() {
-  blinkLED(100);  // Blink every 1 second
+    // --- Non-blocking Update Check ---
+    /*
+    * Why: Using `delay()` would halt your entire program. The `millis()` approach allows the
+    *      main code (like the blinking LED) to run continuously while periodically checking
+    *      if it's time to perform a task.
+    * How: It records the time of the last check (`previousMillis`). In each loop, it calculates
+    *      the elapsed time. If that time exceeds `updateInterval`, it runs the update check
+    *      and resets `previousMillis` to the current time.
+    */
+    if (millis() - previousMillis >= updateInterval) {
+        performUpdate();
+        previousMillis = millis(); // Reset the timer
+    }
+
+    // Your main application code runs here.
+    // For this example, we just blink the LED.
+    digitalWrite(ledPin, HIGH);
+    delay(500);
+    digitalWrite(ledPin, LOW);
+    delay(500);
 }
