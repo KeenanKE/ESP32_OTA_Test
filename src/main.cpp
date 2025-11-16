@@ -125,7 +125,8 @@ void loop() {
     // Your main application code runs here.
     // For this example, we just blink the LED.
     digitalWrite(ledPin, HIGH);
-    delay(500);
+    delay(100);
     digitalWrite(ledPin, LOW);
-    delay(500);
+    delay(100);
+    Serial.println("[Blink] Cycle complete.");
 }
