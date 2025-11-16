@@ -36,29 +36,30 @@ void performFirmwareUpdate() {
     HTTPClient http;
     http.begin(firmwareUrl);
 
-    // Add cache-control headers
+    // Add cache-control headers to ensure we get the latest firmware faster
     http.addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     http.addHeader("Pragma", "no-cache");
     http.addHeader("Expires", "0");
 
     int httpCode = http.GET();
     if (httpCode == HTTP_CODE_OK) {
+      // Get the size of the firmware
         int contentLength = http.getSize();
         if (contentLength > 0) {
             Serial.printf("[OTA Update] Firmware size: %d bytes\n", contentLength);
-
+          // Begin the update process
             bool canBegin = Update.begin(contentLength);
             if (canBegin) {
                 Serial.println("[OTA Update] Writing firmware to flash...");
                 WiFiClient& stream = http.getStream();
                 size_t written = Update.writeStream(stream);
-
+              // Check if the write was successful
                 if (written == contentLength) {
                     Serial.println("[OTA Update] Wrote: " + String(written) + " bytes successfully");
                 } else {
                     Serial.println("[OTA Update] Wrote only: " + String(written) + "/" + String(contentLength) + " bytes. Error!");
                 }
-
+              // Finalize the update
                 if (Update.end()) {
                     Serial.println("[OTA Update] Update finished!");
                     if (Update.isFinished()) {
@@ -138,6 +139,7 @@ void setup() {
     Serial.begin(115200);
     Serial.println("\n[Boot] Starting up...");
 
+    // Initialize the built-in LED pin
     pinMode(ledPin, OUTPUT);
     digitalWrite(ledPin, LOW);
 
