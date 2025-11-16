@@ -109,10 +109,10 @@ def after_build(source, target, env):
 # This is where we hook our function into the PlatformIO build process.
 try:
     # 'AddPostAction' registers a function to be run after a specific build target is created.
-    # We are targeting the '.elf' file. The '.elf' file is created at the end of the
-    # linking stage, so this is a reliable point to know the build was successful.
-    # The '.bin' is created from the '.elf', so this ensures both are ready.
-    env.AddPostAction(os.path.join("$BUILD_DIR", "${PROGNAME}.elf"), after_build)
+    # We are targeting the '.bin' file instead of '.elf' to ensure the binary is ready.
+    # The '.bin' is the final output created from the '.elf', so waiting for it ensures
+    # all build artifacts are complete.
+    env.AddPostAction(os.path.join("$BUILD_DIR", "${PROGNAME}.bin"), after_build)
 except Exception:
     # Again, if 'env' is not defined (because we're not in a PlatformIO build),
     # this will fail. We catch the exception so the script doesn't crash.
