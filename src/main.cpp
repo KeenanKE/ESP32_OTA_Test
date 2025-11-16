@@ -181,8 +181,8 @@ void loop() {
     // The main loop is now only responsible for the simple blink logic.
     // The memory-intensive OTA check is running safely on its own core/task.
     digitalWrite(ledPin, HIGH);
-    delay(10000);
+    delay(1000);
     digitalWrite(ledPin, LOW);
-    delay(10000);
+    delay(1000);
     Serial.println("[Blink] Cycle complete.");
 }
