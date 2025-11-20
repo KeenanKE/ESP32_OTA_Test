@@ -4,6 +4,7 @@
 #include <Update.h>
 
 // --- Configuration ---
+
 // Wi-Fi credentials are loaded from environment variables via build flags
 // See .env.example for setup instructions
 const char* ssid = WIFI_SSID;
