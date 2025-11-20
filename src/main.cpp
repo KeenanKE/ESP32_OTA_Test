@@ -4,9 +4,10 @@
 #include <Update.h>
 
 // --- Configuration ---
-// Replace with your Wi-Fi credentials
-const char* ssid = "Wirelessnet";
-const char* password = "BerryWi2023%";
+// Wi-Fi credentials are loaded from environment variables via build flags
+// See .env.example for setup instructions
+const char* ssid = WIFI_SSID;
+const char* password = WIFI_PASSWORD;
 
 // URL for the firmware binary on your GitHub
 const char* firmwareUrl = "https://raw.githubusercontent.com/KeenanKE/ESP32_OTA_Test/main/releases/firmware.bin";
